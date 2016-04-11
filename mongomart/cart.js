@@ -37,16 +37,11 @@ function CartDAO(database) {
         *
         */
 
-        var userCart = {
-            userId: userId,
-            items: []
-        }
-        var dummyItem = this.createDummyItem();
-        userCart.items.push(dummyItem);
-        
-        // TODO-lab5 Replace all code above (in this method).
+        this.db.collection('cart')
+            .findOne({ 'userId': userId}, function(err, cart) {
+                callback(cart);
+            });
 
-        callback(userCart);
     }
 
 

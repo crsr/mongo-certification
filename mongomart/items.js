@@ -23,6 +23,7 @@ function ItemDAO(database) {
     "use strict";
 
     this.db = database;
+    this.itemsCollection = this.db.collection('item');
 
     this.getCategories = function(callback) {
         "use strict";
@@ -42,9 +43,9 @@ function ItemDAO(database) {
         * should identify the total number of documents across all categories.
         *
         */
-        var itemsCollection = this.db.collection('item');
 
-        itemsCollection.aggregate(
+
+        this.itemsCollection.aggregate(
             [
                 { $match: { category: { $exists: true } }},
                 { $group: {  _id: "$category", num: {$sum:1} }},
@@ -82,7 +83,7 @@ function ItemDAO(database) {
 
     this.getItems = function(category, page, itemsPerPage, callback) {
         "use strict";
-        
+
         /*
          * TODO-lab1B
          *
@@ -95,23 +96,20 @@ function ItemDAO(database) {
          * Do NOT sort items. 
          *
          */
+        if(category == 'All')
+            category = { $exists: true };
 
-        var pageItem = this.createDummyItem();
-        var pageItems = [];
-        for (var i=0; i<5; i++) {
-            pageItems.push(pageItem);
-        }
+        this.itemsCollection.find({ category: category }).skip(page * itemsPerPage).limit(itemsPerPage).toArray(function(err,items){
+            callback(items);
+        });
 
         // TODO-lab1B Replace all code above (in this method).
 
-        callback(pageItems);
     }
 
 
     this.getNumItems = function(category, callback) {
         "use strict";
-        
-        var numItems = 0;
 
         /*
          * TODO-lab1C
@@ -124,8 +122,13 @@ function ItemDAO(database) {
          * getNumItems() method.
          *
          */
-        
-        callback(numItems);
+
+        if(category == 'All')
+            category = { $exists: true };
+
+        this.itemsCollection.find({ category: category }).count(function(err,numItems){
+            callback(numItems);
+        });
     }
 
 
@@ -146,24 +149,26 @@ function ItemDAO(database) {
          * You will need to create a single text index on title, slogan, and description.
          *
          */
-        
-        var item = this.createDummyItem();
-        var items = [];
-        for (var i=0; i<5; i++) {
-            items.push(item);
-        }
+        this.itemsCollection.createIndex(
+            {
+                title: "text",
+                slogan: "text",
+                description: "text"
+            }
+        );
+
+        this.itemsCollection.find({$text: {$search: query}}).skip(page * itemsPerPage).limit(itemsPerPage).toArray(function(err,items){
+            callback(items);
+        });
 
         // TODO-lab2A Replace all code above (in this method).
 
-        callback(items);
     }
 
 
     this.getNumSearchItems = function(query, callback) {
         "use strict";
 
-        var numItems = 0;
-        
         /*
         * TODO-lab2B
         *
@@ -172,8 +177,9 @@ function ItemDAO(database) {
         * to the callback function.
         *
         */
-
-        callback(numItems);
+        this.itemsCollection.find({$text: {$search: query}}).count(function(err,count){
+            callback(count);
+        });
     }
 
 
@@ -187,12 +193,14 @@ function ItemDAO(database) {
          * to the callback function.
          *
          */
-        
-        var item = this.createDummyItem();
+
+        this.db.collection('item')
+            .findOne({ '_id': itemId}, function(err, item) {
+               callback(item);
+            });
+
 
         // TODO-lab3 Replace all code above (in this method).
-
-        callback(item);
     }
 
 
@@ -227,9 +235,14 @@ function ItemDAO(database) {
             date: Date.now()
         }
 
-        var dummyItem = this.createDummyItem();
-        dummyItem.reviews = [reviewDoc];
-        callback(dummyItem);
+        this.db.collection("item").updateOne(
+            { "_id" : itemId },
+            {
+                "$set": { "reviews": [reviewDoc] }
+
+            }, function(err, results) {
+                callback();
+            });
     }
 
 
